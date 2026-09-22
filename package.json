@@ -1,0 +1,11 @@
+{
+  "name":"verifiedmodels-cloudflare",
+  "version":"1.0.0",
+  "private":true,
+  "description":"VerifiedModels Telegram Bot on Cloudflare Workers with Telegram Webhook and Firebase Firestore REST",
+  "type":"module",
+  "scripts":{"dev":"wrangler dev","deploy":"wrangler deploy","check":"node scripts/check.js"},
+  "dependencies":{"telegraf":"^4.16.3"},
+  "devDependencies":{"wrangler":"^4.39.0"},
+  "engines":{"node":">=20"}
+}
