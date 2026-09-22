@@ -1,10 +1,7 @@
-import telegrafPkg from 'telegraf';
-import handlersPkg from './src/handlers/index.js';
+const {Telegraf}=require('telegraf');
+const {registerHandlers}=require('./src/handlers');
 
-const {Telegraf}=telegrafPkg;
-const {registerHandlers}=handlersPkg;
 let botPromise;
-
 async function getBot(){
   if(!botPromise){
     botPromise=(async()=>{
@@ -25,7 +22,7 @@ async function telegram(method,body){
   if(!data.ok)throw new Error(data.description||'Telegram API error');
   return data.result;
 }
-export default {
+module.exports={
   async fetch(request){
     const url=new URL(request.url);
     if(request.method==='GET'){
@@ -33,7 +30,9 @@ export default {
       if(url.pathname==='/set-webhook'){
         if(!process.env.SETUP_SECRET||url.searchParams.get('secret')!==process.env.SETUP_SECRET)return new Response('Unauthorized',{status:401});
         const webhookUrl=process.env.WEBHOOK_URL||url.origin+'/telegram';
-        const result=await telegram('setWebhook',{url:webhookUrl,drop_pending_updates:true,secret_token:process.env.WEBHOOK_SECRET||undefined});
+        const body={url:webhookUrl,drop_pending_updates:true};
+        if(process.env.WEBHOOK_SECRET)body.secret_token=process.env.WEBHOOK_SECRET;
+        const result=await telegram('setWebhook',body);
         return Response.json({ok:true,webhookUrl,result});
       }
       if(url.pathname==='/delete-webhook'){
