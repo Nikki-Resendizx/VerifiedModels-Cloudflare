@@ -1,0 +1,1 @@
+module.exports=bot=>{bot.on('text',(ctx,next)=>next());};
