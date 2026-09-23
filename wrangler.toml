@@ -5,3 +5,8 @@ compatibility_flags = ["nodejs_compat", "nodejs_compat_populate_process_env"]
 
 [observability]
 enabled = true
+
+[[d1_databases]]
+binding = "VM_DB"
+database_name = "verifiedmodels-db"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
