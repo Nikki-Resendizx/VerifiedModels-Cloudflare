@@ -5,7 +5,7 @@ const {
 const {
   getPlantillas, getModelos, getBotMedia, getUsers, getConfig, getStorage,
   getButtonConfig, saveButtonConfig, saveConfig,
-  deletePlantilla, deleteModelo, resetModeloVotes,
+  deletePlantilla, deleteModelo, resetModeloVotes, getModelo, saveModelo,
   saveBotMedia, deleteBotMedia, deleteModelBotMedia
 } = require('../config/db');
 const { publishPhotoToStorage, publishTextToStorage } = require('../storage');
@@ -600,7 +600,7 @@ module.exports = bot => {
         }
         clearPending(ctx.from.id);
         return ctx.reply(
-          '✅ Plantilla <b>' + escapeHtml(nombre) + '</b> creada en Firebase. ID: <code>' + id + '</code>\n' +
+          '✅ Plantilla <b>' + escapeHtml(nombre) + '</b> creada en D1. ID: <code>' + id + '</code>\n' +
           '📦 Storage Telegram: ' + (storageOk ? '✅ publicada en 📝 PLANTILLAS' : '⚠️ no publicada: ' + escapeHtml(storageError || 'tema no vinculado')) +
           '\n\nSi aparece ⚠️, entra al tema 📝 PLANTILLAS y ejecuta <code>/vincular plantillas</code>.',
           { parse_mode: 'HTML' }
@@ -616,13 +616,11 @@ module.exports = bot => {
       if (action === 'model_create') {
         const data = JSON.parse(text);
         if (!data.id) throw new Error('Falta id');
-        const { savePlantilla } = require('../config/db');
-        const { db } = require('../config/db');
         const id = String(data.id);
         delete data.id;
         data.votosBueno = Number(data.votosBueno || 0);
         data.votosMalo = Number(data.votosMalo || 0);
-        await db.collection('modelos').doc(id).set(data, { merge: true });
+        await saveModelo(id, data);
         clearPending(ctx.from.id);
         return ctx.reply('✅ Modelo <b>' + escapeHtml(data.perfil || id) + '</b> creada con ID <code>' + escapeHtml(id) + '</code>.', { parse_mode: 'HTML' });
       }
@@ -631,12 +629,10 @@ module.exports = bot => {
         const parts = text.split('|');
         if (parts.length < 3) return ctx.reply('❌ Formato: ID | campo | valor');
         const [id, field, ...rest] = parts.map(x => x.trim());
-        const { db } = require('../config/db');
-        const ref = db.collection('modelos').doc(id);
-        const snap = await ref.get();
-        if (!snap.exists) return ctx.reply('❌ Modelo no encontrada.');
+        const existing = await getModelo(id);
+        if (!existing) return ctx.reply('❌ Modelo no encontrada.');
         const numeric = ['edad', 'votosBueno', 'votosMalo'];
-        await ref.set({ [field]: numeric.includes(field) ? Number(rest.join('|')) : rest.join('|') }, { merge: true });
+        await saveModelo(id, { [field]: numeric.includes(field) ? Number(rest.join('|')) : rest.join('|') });
         clearPending(ctx.from.id);
         return ctx.reply('✅ Campo <code>' + escapeHtml(field) + '</code> actualizado.', { parse_mode: 'HTML' });
       }
@@ -675,7 +671,7 @@ module.exports = bot => {
         const nextAdmins = admins.filter(id => id !== text);
         await saveConfig({ admins: nextAdmins });
         clearPending(ctx.from.id);
-        return ctx.reply('🗑️ ID <code>' + text + '</code> quitado de los administradores de Firebase.', { parse_mode: 'HTML' });
+        return ctx.reply('🗑️ ID <code>' + text + '</code> quitado de los administradores.', { parse_mode: 'HTML' });
       }
 
       if (action === 'button_edit' || action.startsWith('button_edit:')) {
