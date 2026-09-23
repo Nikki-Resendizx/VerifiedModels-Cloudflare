@@ -88,7 +88,7 @@ async function getPlantillas(){const a=await listDocs('plantillas'),o={};for(con
 async function savePlantilla(id,data){return setDoc('plantillas',id,data,true);}
 async function deletePlantilla(id){await deleteDoc('plantillas',id);await deleteDoc('config/storage/plantillas',id).catch(()=>{});}
 async function getModelo(id){return getDoc('modelos',String(id));}
-async function getModelos(){return listDocs('modelos');}
+async function getModelos(){try{return await listDocs('modelos');}catch(e){const msg=String(e?.message||e);console.error('FIRESTORE getModelos:',msg);throw new Error('getModelos: '+msg);}}
 async function deleteModelo(id){await deleteDoc('modelos',String(id));await deleteDoc('config/storage/modelos',String(id)).catch(()=>{});}
 async function resetModeloVotes(id){return setDoc('modelos',String(id),{votosBueno:0,votosMalo:0},true);}
 async function voteModelo(id,type){
