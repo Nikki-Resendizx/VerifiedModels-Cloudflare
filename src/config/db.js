@@ -1,6 +1,6 @@
 const PROJECT_ID=process.env.FIREBASE_PROJECT_ID;
 const CLIENT_EMAIL=process.env.FIREBASE_CLIENT_EMAIL;
-const PRIVATE_KEY=(process.env.FIREBASE_PRIVATE_KEY||'').replace(/\\n/g,'\n');
+const PRIVATE_KEY=(process.env.FIREBASE_PRIVATE_KEY||'').trim().replace(/^['"]|['"]$/g,'').replace(/\\r/g,'').replace(/\\\\n/g,'\\n');
 let tokenCache={token:null,expires:0};
 
 function b64url(input){return btoa(String.fromCharCode(...new Uint8Array(input))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');}
