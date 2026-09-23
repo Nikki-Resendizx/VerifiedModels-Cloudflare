@@ -2,6 +2,24 @@ const PROJECT_ID=process.env.FIREBASE_PROJECT_ID;
 const CLIENT_EMAIL=process.env.FIREBASE_CLIENT_EMAIL;
 const PRIVATE_KEY=(process.env.FIREBASE_PRIVATE_KEY||'').trim().replace(/^['"]|['"]$/g,'').replace(/\\r/g,'').replace(/\\\\n/g,'\\n');
 let tokenCache={token:null,expires:0};
+let d1Ready=false;
+function getD1(){return globalThis.__verifiedmodelsEnv?.VM_DB||null;}
+async function ensureD1(){
+  const db=getD1();
+  if(!db) throw new Error('Falta binding D1 VM_DB en Cloudflare.');
+  if(!d1Ready){
+    await db.prepare(`CREATE TABLE IF NOT EXISTS usuarios (
+      id TEXT PRIMARY KEY, username TEXT, first_name TEXT, last_name TEXT,
+      status TEXT DEFAULT 'activo', actualizado TEXT
+    )`).run();
+    await db.prepare(`CREATE TABLE IF NOT EXISTS plantillas (
+      id TEXT PRIMARY KEY, nombre TEXT NOT NULL, texto TEXT NOT NULL,
+      entities TEXT, parse_mode TEXT, media_file_id TEXT, actualizado TEXT
+    )`).run();
+    d1Ready=true;
+  }
+  return db;
+}
 
 function b64url(input){return btoa(String.fromCharCode(...new Uint8Array(input))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');}
 function enc(s){return encodeURIComponent(String(s));}
@@ -80,13 +98,54 @@ async function getConfig(){
   return Object.assign({},a||{},{botones:b||{}},{premium:p||{activo:true}});
 }
 async function saveConfig(data){await setDoc('config','bot',data,true);globalThis.__verifiedmodelsConfigVersion=Date.now();}
-async function getUser(id){return getDoc('usuarios',String(id));}
-async function saveUser(id,info){return setDoc('usuarios',String(id),Object.assign({},info,{id:String(id),actualizado:new Date().toISOString()}),true);}
-async function getUsers(){return listDocs('usuarios');}
-async function setUserStatus(id,data){return setDoc('usuarios',String(id),data,true);}
-async function getPlantillas(){const a=await listDocs('plantillas'),o={};for(const d of a)o[d.id]=d;return o;}
-async function savePlantilla(id,data){return setDoc('plantillas',id,data,true);}
-async function deletePlantilla(id){await deleteDoc('plantillas',id);await deleteDoc('config/storage/plantillas',id).catch(()=>{});}
+async function getUser(id){
+  const db=await ensureD1();
+  const r=await db.prepare('SELECT * FROM usuarios WHERE id=?').bind(String(id)).first();
+  return r||null;
+}
+async function saveUser(id,info){
+  const db=await ensureD1(), now=new Date().toISOString();
+  const current=await getUser(id);
+  const row=Object.assign({},current||{},info,{id:String(id),actualizado:now});
+  await db.prepare(`INSERT INTO usuarios (id,username,first_name,last_name,status,actualizado)
+    VALUES (?,?,?,?,?,?)
+    ON CONFLICT(id) DO UPDATE SET username=excluded.username,first_name=excluded.first_name,last_name=excluded.last_name,status=excluded.status,actualizado=excluded.actualizado`)
+    .bind(String(id),String(row.username||''),String(row.first_name||''),String(row.last_name||''),String(row.status||'activo'),now).run();
+  return row;
+}
+async function getUsers(){
+  const db=await ensureD1();
+  const r=await db.prepare('SELECT * FROM usuarios ORDER BY actualizado DESC').all();
+  return r.results||[];
+}
+async function setUserStatus(id,data){
+  const db=await ensureD1();
+  await db.prepare('UPDATE usuarios SET status=?, actualizado=? WHERE id=?')
+    .bind(String(data.status||'activo'),new Date().toISOString(),String(id)).run();
+  return getUser(id);
+}
+async function getPlantillas(){
+  const db=await ensureD1();
+  const r=await db.prepare('SELECT * FROM plantillas ORDER BY actualizado DESC').all();
+  const o={};
+  for(const x of (r.results||[])){
+    let entities=[];
+    try{entities=x.entities?JSON.parse(x.entities):[];}catch(_){}
+    o[x.id]={id:x.id,nombre:x.nombre,texto:x.texto,entities,parse_mode:x.parse_mode||undefined,media_file_id:x.media_file_id||undefined,actualizado:x.actualizado};
+  }
+  return o;
+}
+async function savePlantilla(id,data){
+  const db=await ensureD1(), now=new Date().toISOString();
+  const current=(await getPlantillas())[id]||{};
+  const row=Object.assign({},current,data,{id:String(id),actualizado:now});
+  await db.prepare(`INSERT INTO plantillas (id,nombre,texto,entities,parse_mode,media_file_id,actualizado)
+    VALUES (?,?,?,?,?,?,?)
+    ON CONFLICT(id) DO UPDATE SET nombre=excluded.nombre,texto=excluded.texto,entities=excluded.entities,parse_mode=excluded.parse_mode,media_file_id=COALESCE(excluded.media_file_id,plantillas.media_file_id),actualizado=excluded.actualizado`)
+    .bind(String(id),String(row.nombre||id),String(row.texto||''),JSON.stringify(row.entities||[]),row.parse_mode?String(row.parse_mode):null,row.media_file_id?String(row.media_file_id):null,now).run();
+  return row;
+}
+async function deletePlantilla(id){const db=await ensureD1();await db.prepare('DELETE FROM plantillas WHERE id=?').bind(String(id)).run();}
 async function getModelo(id){return getDoc('modelos',String(id));}
 async function getModelos(){try{return await listDocs('modelos');}catch(e){const msg=String(e?.message||e);console.error('FIRESTORE getModelos:',msg);throw new Error('getModelos: '+msg);}}
 async function deleteModelo(id){await deleteDoc('modelos',String(id));await deleteDoc('config/storage/modelos',String(id)).catch(()=>{});}
@@ -110,7 +169,10 @@ async function saveButtonConfig(key,data){
 }
 async function deleteBotMedia(key){const c=await getConfig();const media={...(c.media||{})};delete media[String(key)];const data={media};if(key==='bienvenida')Object.assign(data,{bienvenida_media:null,bienvenida_media_file_id:null,bienvenida_media_url:null});if(key==='galeria')Object.assign(data,{galeria_media:null,galeria_media_file_id:null,galeria_media_url:null});return setDoc('config','bot',data,true);}
 async function saveBotMedia(key,fileId){const media={};media[String(key)]=String(fileId);const data={media};if(key==='bienvenida')Object.assign(data,{bienvenida_media:String(fileId),bienvenida_media_file_id:String(fileId),bienvenida_media_url:String(fileId)});if(key==='galeria')Object.assign(data,{galeria_media:String(fileId),galeria_media_file_id:String(fileId),galeria_media_url:String(fileId)});return setDoc('config','bot',data,true);}
-async function saveTemplateMedia(id,fileId){return setDoc('plantillas',String(id),{media_file_id:fileId,actualizado:new Date().toISOString()},true);}
+async function saveTemplateMedia(id,fileId){
+  const db=await ensureD1();
+  await db.prepare('UPDATE plantillas SET media_file_id=?, actualizado=? WHERE id=?').bind(String(fileId),new Date().toISOString(),String(id)).run();
+}
 async function getStorage(){return (await getDoc('config','storage'))||{};}
 async function saveStorageIndex(key,data){const s=await getStorage();return setDoc('config','storage',{media:{...(s.media||{}),[key]:{...data,actualizado:new Date().toISOString()}}},true);}
 async function saveModelBotMedia(id,data){return setDoc('config/storage/modelos',String(id),{...data,actualizado:new Date().toISOString()},true);}
