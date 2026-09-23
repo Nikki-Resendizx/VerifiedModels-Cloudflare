@@ -147,6 +147,7 @@ async function savePlantilla(id,data){
 }
 async function deletePlantilla(id){const db=await ensureD1();await db.prepare('DELETE FROM plantillas WHERE id=?').bind(String(id)).run();}
 async function getModelo(id){return getDoc('modelos',String(id));}
+async function saveModelo(id,data){return setDoc('modelos',String(id),data,true);}
 async function getModelos(){try{return await listDocs('modelos');}catch(e){const msg=String(e?.message||e);console.error('FIRESTORE getModelos:',msg);throw new Error('getModelos: '+msg);}}
 async function deleteModelo(id){await deleteDoc('modelos',String(id));await deleteDoc('config/storage/modelos',String(id)).catch(()=>{});}
 async function resetModeloVotes(id){return setDoc('modelos',String(id),{votosBueno:0,votosMalo:0},true);}
@@ -178,4 +179,4 @@ async function saveStorageIndex(key,data){const s=await getStorage();return setD
 async function saveModelBotMedia(id,data){return setDoc('config/storage/modelos',String(id),{...data,actualizado:new Date().toISOString()},true);}
 async function getModelBotMedia(id){return getDoc('config/storage/modelos',String(id));}
 async function linkStorageTopic(key,data){const s=await getStorage();return setDoc('config','storage',{group_id:String(data.group_id),topics:{...(s.topics||{}),[key]:data.topic}},true);}
-module.exports={getConfig,saveConfig,getUser,saveUser,getUsers,setUserStatus,getPlantillas,savePlantilla,deletePlantilla,getModelo,getModelos,deleteModelo,resetModeloVotes,voteModelo,getBotMedia,saveBotMedia,getButtonConfig,saveButtonConfig,saveTemplateMedia,getStorage,saveStorageIndex,saveModelBotMedia,getModelBotMedia,deleteModelBotMedia:async id=>deleteDoc('config/storage/modelos',String(id)),linkStorageTopic};
+module.exports={getConfig,saveConfig,getUser,saveUser,getUsers,setUserStatus,getPlantillas,savePlantilla,deletePlantilla,getModelo,getModelos,saveModelo,deleteModelo,resetModeloVotes,voteModelo,getBotMedia,saveBotMedia,getButtonConfig,saveButtonConfig,saveTemplateMedia,getStorage,saveStorageIndex,saveModelBotMedia,getModelBotMedia,deleteModelBotMedia:async id=>deleteDoc('config/storage/modelos',String(id)),linkStorageTopic};
