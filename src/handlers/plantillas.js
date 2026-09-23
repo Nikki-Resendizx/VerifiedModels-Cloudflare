@@ -29,7 +29,7 @@ module.exports=bot=>{
       console.error('PLANTILLA: Storage:',storageError);
     }
     return ctx.reply(
-      '✅ Plantilla '+escapeHtml(nombre)+' guardada en Firebase. ID: <code>'+escapeHtml(id)+'</code>\n' +
+      '✅ Plantilla '+escapeHtml(nombre)+' guardada en D1. ID: <code>'+escapeHtml(id)+'</code>\n' +
       '📦 Storage Telegram: '+(storageOk?'✅ publicada en 📝 PLANTILLAS':'⚠️ no publicada: '+escapeHtml(storageError||'tema no vinculado'))+
       '\n\nSi aparece ⚠️, entra al tema 📝 PLANTILLAS y ejecuta <code>/vincular plantillas</code>.',
       {parse_mode:'HTML'}
