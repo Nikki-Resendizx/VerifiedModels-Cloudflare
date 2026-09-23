@@ -9,4 +9,4 @@ enabled = true
 [[d1_databases]]
 binding = "VM_DB"
 database_name = "verifiedmodels-db"
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
+database_id = "61d6b77b-532c-454a-8fe1-645165261ca6"
