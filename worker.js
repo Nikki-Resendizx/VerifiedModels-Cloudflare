@@ -30,8 +30,7 @@ async function telegram(method, body) {
 }
 
 const worker = {
-  async fetch(request, env) {
-    globalThis.__verifiedmodelsEnv = env;
+  async fetch(request) {
     const url = new URL(request.url);
 
     if (request.method === 'GET') {
